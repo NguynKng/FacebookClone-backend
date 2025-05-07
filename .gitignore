@@ -1,0 +1,21 @@
+# dependencies
+/node_modules
+
+# compiled output
+/dist
+
+# environment variables
+.env
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# IDE files
+.vscode
+.idea
+
+# uploads directory (excluding the directory itself)
+/uploads/*
+!/uploads/.gitkeep
