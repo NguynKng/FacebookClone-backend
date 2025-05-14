@@ -1,5 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import UserModel from '../models/User'
+import { validateEmail } from '@/utils/validateFunction'
+
+type VerifyRequest = FastifyRequest<{
+  Body: {
+    email: string
+    code: string
+  }
+}>
 
 // Custom request types
 type RegisterRequest = FastifyRequest<{
@@ -29,49 +37,75 @@ export const register = async (request: RegisterRequest, reply: FastifyReply) =>
   try {
     const { firstName, surname, email, password, birthDay, birthMonth, birthYear, gender } = request.body
 
-    // Check if all required fields are provided
     if (!firstName || !surname || !email || !password || !birthDay || !birthMonth || !birthYear || !gender) {
-      return reply.code(400).send({
-        success: false,
-        message: 'Please provide all required fields'
-      })
+      return reply.code(400).send({ success: false, message: 'Please provide all required fields' })
     }
 
-    // Check if user already exists
+    if (!validateEmail(email)) {
+      return reply.code(400).send({ success: false, message: 'Invalid email format' })
+    }
+
     const userExists = await UserModel.findOne({ email })
     if (userExists) {
-      return reply.code(400).send({
-        success: false,
-        message: 'This email already exists'
-      })
+      return reply.code(400).send({ success: false, message: 'This email already exists' })
     }
 
-    // Combine birth date components into a single string
     const birth = `${birthDay}/${birthMonth}/${birthYear}`
 
-    // Create user
+    const verificationCode = '123456'
+
     const user = await UserModel.create({
       firstName,
       surname,
       email,
       password,
       birth,
-      gender
+      gender,
+      isVerified: false,
+      verificationCode
     })
 
-    // Generate token using Fastify JWT
-    const token = await reply.jwtSign(
-      {
-        id: user._id
-      },
-      {
-        expiresIn: process.env.JWT_EXPIRE || '30d'
-      }
-    )
+    // Gửi email chứa code tới user.email (ở đây dùng console.log giả lập)
+    //console.log(`Verification code for ${email}: ${verificationCode}`)
 
-    // Send response
     return reply.code(201).send({
       success: true,
+      message: 'Registered successfully. Please verify your email.',
+      email: user.email
+    })
+  } catch (error) {
+    console.error('Register error:', error)
+    return reply.code(500).send({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+}
+
+export const verifyEmail = async (request: VerifyRequest, reply: FastifyReply) => {
+  try {
+    const { email, code } = request.body
+
+    const user = await UserModel.findOne({ email })
+
+    if (!user) {
+      return reply.code(404).send({ success: false, message: 'User not found' })
+    }
+
+    if (user.verificationCode !== code) {
+      return reply.code(400).send({ success: false, message: 'Invalid verification code' })
+    }
+
+    user.isVerified = true
+    user.verificationCode = 'null'
+    await user.save()
+
+    const token = await reply.jwtSign({ id: user._id }, { expiresIn: process.env.JWT_EXPIRE || '30d' })
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Email verified successfully',
       token,
       user: {
         _id: user._id,
@@ -83,7 +117,6 @@ export const register = async (request: RegisterRequest, reply: FastifyReply) =>
       }
     })
   } catch (error) {
-    console.error('Register error:', error)
     return reply.code(500).send({
       success: false,
       message: 'Server error',

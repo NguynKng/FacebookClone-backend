@@ -129,3 +129,37 @@ export const getPostsByUserId = async (request: FastifyRequest<GetPostsByUserIdP
     })
   }
 }
+
+interface GetPostsIdParams extends RouteGenericInterface {
+  Params: {
+    postId: string
+  }
+}
+
+export const deletePostById = async (request: FastifyRequest<GetPostsIdParams>, reply: FastifyReply) => {
+  const { postId } = request.params
+
+  try {
+    const deletedPost = await PostModel.findByIdAndDelete(postId)
+
+    if (!deletedPost) {
+      return reply.code(404).send({
+        success: false,
+        message: `Post with id ${postId} not found.`
+      })
+    }
+
+    return reply.send({
+      success: true,
+      message: `Post with id ${postId} has been deleted successfully.`,
+      data: deletedPost
+    })
+  } catch (error) {
+    console.error('Delete post error:', error)
+    return reply.code(500).send({
+      success: false,
+      message: 'Lỗi máy chủ',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+}

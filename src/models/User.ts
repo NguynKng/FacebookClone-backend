@@ -14,6 +14,8 @@ interface User extends mongoose.Document {
   friends: mongoose.Types.ObjectId[]
   friendRequests: mongoose.Types.ObjectId[]
   createdAt: Date
+  isVerified: boolean
+  verificationCode: string
   // Methods for the user model
   matchPassword(enteredPassword: string): Promise<boolean>
 }
@@ -67,6 +69,14 @@ const UserSchema = new mongoose.Schema<User>({
       ref: 'User'
     }
   ],
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  verificationCode: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now

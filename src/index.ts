@@ -15,7 +15,7 @@ import path from 'path'
 import { handleSocketEvents } from './socket'
 
 const fastify = Fastify({
-  logger: true,
+  logger: true
 })
 
 fastify.register(fastifyCors, {

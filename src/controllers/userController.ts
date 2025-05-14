@@ -288,8 +288,9 @@ export const deleteFriend = async (request: FastifyRequest<GetUserId>, reply: Fa
 
     await user.save()
     await friend.save()
+    const updateUser = await UserModel.findById(userId).select('-password')
 
-    return reply.code(200).send({ success: true, message: 'Đã xoá bạn' })
+    return reply.code(200).send({ success: true, message: 'Đã xoá bạn', data: updateUser })
   } catch (error) {
     console.error('Delete friend error:', error)
     return reply.code(500).send({ success: false, message: 'Server error' })
