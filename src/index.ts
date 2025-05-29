@@ -13,6 +13,8 @@ import commentRoutes from './routes/commentRoutes'
 import messageRoutes from './routes/messageRoutes'
 import path from 'path'
 import { handleSocketEvents } from './socket'
+import sseRoutes from './routes/sseRoutes'
+import notificationRoutes from './routes/notificationRoutes'
 
 const fastify = Fastify({
   logger: true
@@ -62,6 +64,8 @@ fastify.register(postRoutes, { prefix: '/api/posts' })
 fastify.register(userRoutes, { prefix: '/api/users' })
 fastify.register(commentRoutes, { prefix: '/api/comments' })
 fastify.register(messageRoutes, { prefix: '/api/messages' })
+fastify.register(notificationRoutes, { prefix: '/api/notifications' })
+fastify.register(sseRoutes, { prefix: '/events' })
 
 // Basic route to test if server is running
 fastify.get('/', async () => {

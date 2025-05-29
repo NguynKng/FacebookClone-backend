@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { Socket } from 'socket.io'
 import MessageModel from './models/Message'
 import UserModel from './models/User'
+import { clients } from './controllers/sseController'
 
 export function handleSocketEvents(fastify: FastifyInstance) {
   const userSocketMap: { [userId: string]: string } = {}
@@ -78,6 +79,16 @@ export function handleSocketEvents(fastify: FastifyInstance) {
           }
           const sender = await UserModel.findById(senderId).select('_id firstName surname avatar')
           const receiver = await UserModel.findById(receiverId).select('_id firstName surname avatar')
+
+          const client = clients[receiverId.toString()]
+          if (client) {
+            const data = JSON.stringify({
+              type: 'new_message',
+              sender: sender
+            })
+            client.write(`data: ${data}\n\n`)
+          }
+
           fastify.io.to(receiverId).emit('newMessage', {
             lastMessage: {
               text: newMessage.text,

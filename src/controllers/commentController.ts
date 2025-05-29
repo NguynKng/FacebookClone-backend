@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest, RouteGenericInterface } from 'fastify'
 import CommentModel from '../models/Comment'
-
+import PostModel from '@/models/Post'
+import { createAndSendNotificationToUser } from './notificationController'
 // ─────────────────────────────────────────────
 // Define interfaces for each route
 interface CommentOnPostRoute extends RouteGenericInterface {
@@ -25,13 +26,29 @@ export const commentOnPost = async (request: FastifyRequest<CommentOnPostRoute>,
     const { content } = request.body
     const userId = (request as any).user?._id
 
+    const post = await PostModel.findById(postId)
+    if (!post) {
+      return reply.code(404).send({
+        success: false,
+        message: 'Post not found'
+      })
+    }
+
     const comment = await CommentModel.create({
       post: postId,
       user: userId,
       content
     })
 
+    post.comments.push(comment._id)
+    await post.save()
+
     const populatedComment = await comment.populate('user', 'firstName surname avatar')
+
+    if (post.author.toString() != userId.toString()) {
+      // Create notification for the post author
+      await createAndSendNotificationToUser(post.author.toString(), userId, 'comment_post', postId)
+    }
 
     return reply.code(201).send({
       success: true,

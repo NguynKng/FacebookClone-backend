@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify'
 import ReactionModel from '@/models/Reaction'
 import PostModel from '@/models/Post'
 import mongoose from 'mongoose'
+import { createAndSendNotificationToUser } from './notificationController'
 
 export const reactToPost = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -51,6 +52,10 @@ export const reactToPost = async (request: FastifyRequest, reply: FastifyReply) 
     post.reactions.push(newReaction._id)
     await post.save()
     const populatedReaction = await newReaction.populate('user', 'firstName surname avatar')
+    if (post.author.toString() !== userId.toString()) {
+      // Create notification for the post author
+      await createAndSendNotificationToUser(post.author.toString(), userId, 'react_post', postId)
+    }
 
     return reply.code(201).send({ message: 'Reacted successfully', success: true, data: populatedReaction })
   } catch (error) {

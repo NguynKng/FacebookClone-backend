@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply, RouteGenericInterface } from 'fastify'
 import PostModel from '../models/Post'
 import { uploadPostFile } from '@/middleware/upload'
+import { createAndSendNotificationForFriend } from './notificationController'
 
 // @desc    Create a new post with multiple images
 // @route   POST /api/posts
@@ -31,8 +32,6 @@ export const createPost = async (request: FastifyRequest, reply: FastifyReply) =
         part.file.resume() // Bỏ stream nếu là file không hợp lệ
       }
     }
-    console.log('Total parts:', totalParts)
-    console.log('Content:', content)
 
     post.content = content
     post.images = imagesPaths
@@ -41,6 +40,10 @@ export const createPost = async (request: FastifyRequest, reply: FastifyReply) =
       path: 'author',
       select: 'firstName surname avatar'
     })
+
+    if (populatedPost) {
+      await createAndSendNotificationForFriend(userId, 'new_post', populatedPost._id.toString(), populatedPost)
+    }
 
     return reply.code(201).send({
       success: true,
@@ -133,6 +136,48 @@ export const getPostsByUserId = async (request: FastifyRequest<GetPostsByUserIdP
 interface GetPostsIdParams extends RouteGenericInterface {
   Params: {
     postId: string
+  }
+}
+
+export const getPostById = async (request: FastifyRequest<GetPostsIdParams>, reply: FastifyReply) => {
+  const { postId } = request.params
+  try {
+    const post = await PostModel.findById(postId)
+      .populate('author', 'firstName surname avatar')
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'user',
+          select: 'firstName surname avatar'
+        },
+        options: { sort: { createdAt: -1 } }
+      })
+      .populate({
+        path: 'reactions',
+        populate: {
+          path: 'user',
+          select: 'firstName surname avatar'
+        }
+      })
+
+    if (!post) {
+      return reply.code(404).send({
+        success: false,
+        message: `Post with id ${postId} not found.`
+      })
+    }
+
+    return reply.code(200).send({
+      success: true,
+      data: post
+    })
+  } catch (error) {
+    console.error('Get post error:', error)
+    return reply.code(500).send({
+      success: false,
+      message: 'Lỗi máy chủ',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 }
 

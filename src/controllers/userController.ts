@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply, RouteGenericInterface } from 'fastify'
 import UserModel from '../models/User'
 import { uploadFile } from '../middleware/upload'
 import { removeDiacritics } from '@/helper/helper'
+import { createAndSendNotificationToUser } from './notificationController'
+import { send } from 'process'
 
 interface GetUserId extends RouteGenericInterface {
   Params: {
@@ -19,7 +21,8 @@ export const getUserProfileById = async (request: FastifyRequest<GetUserId>, rep
   try {
     const userId = request.params.UserId
 
-    const user = await UserModel.findById(userId).select('-password')
+    const user = await UserModel.findById(userId)
+      .select('-password')
       .populate({
         path: 'friends',
         select: 'firstName surname avatar' // chỉ lấy các field cần thiết
@@ -196,6 +199,7 @@ export const sendFriendRequest = async (request: FastifyRequest<GetUserId>, repl
 
     receiver.friendRequests.push(senderId)
     await receiver.save()
+    await createAndSendNotificationToUser(receiverId, senderId.toString(), 'friend_request')
     return reply.code(200).send({
       success: true,
       message: 'Đã gửi lời mời kết bạn'
@@ -246,6 +250,8 @@ export const acceptFriendRequest = async (request: FastifyRequest<GetUserId>, re
     await receiver.save()
     await sender.save()
     const updateUser = await UserModel.findById(receiverId).select('-password')
+
+    await createAndSendNotificationToUser(senderId, receiverId.toString(), 'accepted_request')
 
     return reply.code(200).send({ success: true, message: 'Đã chấp nhận lời mời kết bạn', data: updateUser })
   } catch (error) {
