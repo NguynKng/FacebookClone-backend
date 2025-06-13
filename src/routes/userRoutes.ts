@@ -9,7 +9,8 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   deleteFriend,
-  getUserByName
+  getUserByName,
+  getNonFriendUsers
 } from '@/controllers/userController'
 
 export default async function userRoutes(fastify: FastifyInstance) {
@@ -22,4 +23,5 @@ export default async function userRoutes(fastify: FastifyInstance) {
   fastify.delete('/friend-request/decline/:UserId', { preHandler: [protect] }, declineFriendRequest)
   fastify.delete('/friend/:UserId', { preHandler: [protect] }, deleteFriend)
   fastify.get('/search', { preHandler: [protect] }, getUserByName)
+  fastify.get('/people-may-know', { preHandler: [protect] }, getNonFriendUsers)
 }

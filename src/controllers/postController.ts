@@ -42,7 +42,7 @@ export const createPost = async (request: FastifyRequest, reply: FastifyReply) =
     })
 
     if (populatedPost) {
-      await createAndSendNotificationForFriend(userId, 'new_post', populatedPost._id.toString(), populatedPost)
+      await createAndSendNotificationForFriend(userId, 'new_post', populatedPost._id.toString())
     }
 
     return reply.code(201).send({

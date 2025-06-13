@@ -1,5 +1,5 @@
 import Fastify from 'fastify'
-import { PORT, FRONTEND_URL, JWT_SECRET } from './config/envVars'
+import { PORT, FRONTEND_URL, JWT_SECRET, EXPO_URL } from './config/envVars'
 import { connectDB } from './config/dbConnect'
 import fastifyJwt from '@fastify/jwt'
 import fastifyCors from '@fastify/cors'
@@ -13,7 +13,6 @@ import commentRoutes from './routes/commentRoutes'
 import messageRoutes from './routes/messageRoutes'
 import path from 'path'
 import { handleSocketEvents } from './socket'
-import sseRoutes from './routes/sseRoutes'
 import notificationRoutes from './routes/notificationRoutes'
 
 const fastify = Fastify({
@@ -21,7 +20,7 @@ const fastify = Fastify({
 })
 
 fastify.register(fastifyCors, {
-  origin: FRONTEND_URL,
+  origin: [FRONTEND_URL, EXPO_URL],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 })
@@ -65,7 +64,6 @@ fastify.register(userRoutes, { prefix: '/api/users' })
 fastify.register(commentRoutes, { prefix: '/api/comments' })
 fastify.register(messageRoutes, { prefix: '/api/messages' })
 fastify.register(notificationRoutes, { prefix: '/api/notifications' })
-fastify.register(sseRoutes, { prefix: '/events' })
 
 // Basic route to test if server is running
 fastify.get('/', async () => {

@@ -1,20 +1,19 @@
 // controllers/notificationController.ts
 import { FastifyRequest, FastifyReply } from 'fastify'
 import Notification from '../models/Notification'
-import { clients } from './sseController'
 import UserModel from '@/models/User'
-import { Post } from '@/models/Post'
+import { getSocketInstance } from '@/socketInstance'
 
 export const createAndSendNotificationToUser = async (
   targetUserId: string,
   actorId: string,
   type: 'react_post' | 'comment_post' | 'new_post' | 'friend_request' | 'accepted_request',
-  postId?: string | null,
-  populatedPost?: Post | null
+  postId?: string | null
 ) => {
   const actor = await UserModel.findById(actorId).select('firstName surname avatar')
   if (!actor) throw new Error('Actor not found')
 
+  // Tạo notification và lưu
   const notification = new Notification({
     user: targetUserId,
     actor: actorId,
@@ -24,26 +23,24 @@ export const createAndSendNotificationToUser = async (
     createdAt: new Date()
   })
 
-  const populatedNotification = await notification.populate('actor', 'firstName surname avatar')
-
-  const client = clients[targetUserId.toString()]
-  if (client) {
-    const data = JSON.stringify({
-      type,
-      notification: populatedNotification,
-      post: populatedPost
-    })
-    client.write(`data: ${data}\n\n`)
-  }
-
   await notification.save()
+
+  // Populate actor sau khi save
+  const populatedNotification = await Notification.findById(notification._id)
+    .populate('actor', 'firstName surname avatar')
+    .lean()
+
+  // Gửi qua socket
+  const io = getSocketInstance()
+  io.to(targetUserId).emit('new_notification', {
+    notification: populatedNotification
+  })
 }
 
 export const createAndSendNotificationForFriend = async (
   actorId: string,
   type: 'react_post' | 'comment_post' | 'new_post' | 'friend_request' | 'accepted_request',
-  postId?: string,
-  populatedPost?: Post
+  postId?: string
 ) => {
   const user = await UserModel.findById(actorId).select('friends surname firstName')
   if (!user) {
@@ -66,15 +63,11 @@ export const createAndSendNotificationForFriend = async (
 
     const populatedNotification = await notification.populate('actor', 'firstName surname avatar')
 
-    const client = clients[friendId.toString()]
-    if (client) {
-      const data = JSON.stringify({
-        type,
-        notification: populatedNotification,
-        post: populatedPost
-      })
-      client.write(`data: ${data}\n\n`)
-    }
+    // Gửi qua socket
+    const io = getSocketInstance()
+    io.to(friendId.toString()).emit('new_notification', {
+      notification: populatedNotification
+    })
 
     notificationsToSave.push(notification.save())
   }

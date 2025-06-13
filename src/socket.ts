@@ -3,10 +3,13 @@ import { FastifyInstance } from 'fastify'
 import { Socket } from 'socket.io'
 import MessageModel from './models/Message'
 import UserModel from './models/User'
-import { clients } from './controllers/sseController'
+import { setSocketInstance } from './socketInstance'
 
 export function handleSocketEvents(fastify: FastifyInstance) {
   const userSocketMap: { [userId: string]: string } = {}
+
+  // Set io instance globally
+  setSocketInstance(fastify.io)
 
   fastify.io.on('connection', (socket: Socket) => {
     console.log(`[SOCKET CONNECTED] ${socket.id}`)
@@ -80,14 +83,12 @@ export function handleSocketEvents(fastify: FastifyInstance) {
           const sender = await UserModel.findById(senderId).select('_id firstName surname avatar')
           const receiver = await UserModel.findById(receiverId).select('_id firstName surname avatar')
 
-          const client = clients[receiverId.toString()]
-          if (client) {
-            const data = JSON.stringify({
-              type: 'new_message',
-              sender: sender
-            })
-            client.write(`data: ${data}\n\n`)
-          }
+          fastify.io.to(receiverId).emit('getNewMessage', {
+            _id: sender?._id,
+            firstName: sender?.firstName,
+            surname: sender?.surname,
+            avatar: sender?.avatar,
+          })
 
           fastify.io.to(receiverId).emit('newMessage', {
             lastMessage: {

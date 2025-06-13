@@ -23,6 +23,12 @@ type RegisterRequest = FastifyRequest<{
   }
 }>
 
+type EmailExistsRequest = FastifyRequest<{
+  Body: {
+    email: string
+  }
+}>
+
 type LoginRequest = FastifyRequest<{
   Body: {
     email: string
@@ -65,9 +71,6 @@ export const register = async (request: RegisterRequest, reply: FastifyReply) =>
       verificationCode
     })
 
-    // Gửi email chứa code tới user.email (ở đây dùng console.log giả lập)
-    //console.log(`Verification code for ${email}: ${verificationCode}`)
-
     return reply.code(201).send({
       success: true,
       message: 'Registered successfully. Please verify your email.',
@@ -75,6 +78,35 @@ export const register = async (request: RegisterRequest, reply: FastifyReply) =>
     })
   } catch (error) {
     console.error('Register error:', error)
+    return reply.code(500).send({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+}
+
+export const isExistingEmail = async (request: EmailExistsRequest, reply: FastifyReply) => {
+  try {
+    const { email } = request.body
+
+    if (!email) {
+      return reply.code(400).send({ success: false, message: 'Email is required' })
+    }
+
+    if (!validateEmail(email)) {
+      return reply.code(400).send({ success: false, message: 'Invalid email format' })
+    }
+
+    const userExists = await UserModel.findOne({ email })
+
+    if (userExists) {
+      return reply.code(200).send({ success: true, exists: true })
+    } else {
+      return reply.code(200).send({ success: true, exists: false })
+    }
+  } catch (error) {
+    console.error('Email existence check error:', error)
     return reply.code(500).send({
       success: false,
       message: 'Server error',

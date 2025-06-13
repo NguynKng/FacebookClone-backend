@@ -302,3 +302,35 @@ export const deleteFriend = async (request: FastifyRequest<GetUserId>, reply: Fa
     return reply.code(500).send({ success: false, message: 'Server error' })
   }
 }
+
+export const getNonFriendUsers = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const currentUserId = request.user._id
+
+    const currentUser = await UserModel.findById(currentUserId).select('friends friendRequests')
+    if (!currentUser) {
+      return reply.code(404).send({
+        success: false,
+        message: 'Người dùng không tồn tại'
+      })
+    }
+
+    // Danh sách ID cần loại bỏ: chính mình, bạn bè, người đã gửi lời mời
+    const excludedIds = [currentUserId, ...currentUser.friends, ...currentUser.friendRequests]
+
+    const users = await UserModel.find({
+      _id: { $nin: excludedIds } // not in danh sách loại trừ
+    }).select('firstName surname avatar')
+
+    return reply.code(200).send({
+      success: true,
+      data: users
+    })
+  } catch (error) {
+    console.error('Get non-friend users error:', error)
+    return reply.code(500).send({
+      success: false,
+      message: 'Lỗi server'
+    })
+  }
+}
