@@ -3,6 +3,7 @@ import ReactionModel from '@/models/Reaction'
 import PostModel from '@/models/Post'
 import mongoose from 'mongoose'
 import { createAndSendNotificationToUser } from './notificationController'
+import { Types } from 'mongoose'
 
 export const reactToPost = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -30,7 +31,7 @@ export const reactToPost = async (request: FastifyRequest, reply: FastifyReply) 
         await existing.deleteOne()
 
         // Remove reaction._id from post.reactions
-        post.reactions = post.reactions.filter((r) => !r.equals(existing._id))
+        post.reactions = post.reactions.filter((r) => !r.equals(existing._id as Types.ObjectId))
         await post.save()
 
         return reply.code(200).send({ message: 'Reaction removed', success: true })
@@ -49,12 +50,12 @@ export const reactToPost = async (request: FastifyRequest, reply: FastifyReply) 
       type
     })
 
-    post.reactions.push(newReaction._id)
+    post.reactions.push(newReaction._id as Types.ObjectId)
     await post.save()
     const populatedReaction = await newReaction.populate('user', 'firstName surname avatar')
-    if (post.author.toString() !== userId.toString()) {
+    if (post.author.toString() !== (userId as string)) {
       // Create notification for the post author
-      await createAndSendNotificationToUser(post.author.toString(), userId, 'react_post', postId)
+      await createAndSendNotificationToUser(post.author.toString(), userId as string, 'react_post', postId)
     }
 
     return reply.code(201).send({ message: 'Reacted successfully', success: true, data: populatedReaction })

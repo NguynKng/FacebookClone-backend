@@ -3,7 +3,7 @@ import UserModel from '../models/User'
 import { uploadFile } from '../middleware/upload'
 import { removeDiacritics } from '@/helper/helper'
 import { createAndSendNotificationToUser } from './notificationController'
-import { send } from 'process'
+import { Types } from 'mongoose'
 
 interface GetUserId extends RouteGenericInterface {
   Params: {
@@ -183,23 +183,23 @@ export const sendFriendRequest = async (request: FastifyRequest<GetUserId>, repl
         message: 'User không tồn tại'
       })
 
-    if (receiver.friendRequests.includes(senderId)) {
+    if (receiver.friendRequests.includes(senderId as Types.ObjectId)) {
       return reply.code(400).send({
         success: false,
         message: 'Đã gửi lời mời trước đó'
       })
     }
 
-    if (receiver.friends.includes(senderId)) {
+    if (receiver.friends.includes(senderId as Types.ObjectId)) {
       return reply.code(400).send({
         success: false,
         message: 'Đã là bạn bè'
       })
     }
 
-    receiver.friendRequests.push(senderId)
+    receiver.friendRequests.push(senderId as Types.ObjectId)
     await receiver.save()
-    await createAndSendNotificationToUser(receiverId, senderId.toString(), 'friend_request')
+    await createAndSendNotificationToUser(receiverId, senderId as string, 'friend_request')
     return reply.code(200).send({
       success: true,
       message: 'Đã gửi lời mời kết bạn'
@@ -217,6 +217,8 @@ export const cancelFriendRequest = async (request: FastifyRequest<GetUserId>, re
 
     const receiver = await UserModel.findById(receiverId)
     if (!receiver) return reply.code(404).send({ success: false, message: 'User không tồn tại' })
+
+    if (!senderId) return reply.code(400).send({ success: false, message: 'Bạn không thể hủy lời mời của chính mình' })
 
     receiver.friendRequests = receiver.friendRequests.filter((id) => id.toString() !== senderId.toString())
     await receiver.save()
@@ -238,12 +240,12 @@ export const acceptFriendRequest = async (request: FastifyRequest<GetUserId>, re
 
     if (!receiver || !sender) return reply.code(404).send({ success: false, message: 'Người dùng không tồn tại' })
 
-    if (!receiver.friendRequests.includes(senderId)) {
+    if (!receiver.friendRequests.includes(sender._id as Types.ObjectId)) {
       return reply.code(400).send({ success: false, message: 'Không có lời mời từ người này' })
     }
 
-    receiver.friends.push(senderId)
-    sender.friends.push(receiverId)
+    receiver.friends.push(sender._id as Types.ObjectId)
+    sender.friends.push(receiver._id as Types.ObjectId)
 
     receiver.friendRequests = receiver.friendRequests.filter((id) => id.toString() !== senderId.toString())
 
@@ -251,7 +253,7 @@ export const acceptFriendRequest = async (request: FastifyRequest<GetUserId>, re
     await sender.save()
     const updateUser = await UserModel.findById(receiverId).select('-password')
 
-    await createAndSendNotificationToUser(senderId, receiverId.toString(), 'accepted_request')
+    await createAndSendNotificationToUser(senderId, receiver._id as string, 'accepted_request')
 
     return reply.code(200).send({ success: true, message: 'Đã chấp nhận lời mời kết bạn', data: updateUser })
   } catch (error) {
@@ -290,7 +292,7 @@ export const deleteFriend = async (request: FastifyRequest<GetUserId>, reply: Fa
     if (!user || !friend) return reply.code(404).send({ success: false, message: 'Người dùng không tồn tại' })
 
     user.friends = user.friends.filter((id) => id.toString() !== friendId)
-    friend.friends = friend.friends.filter((id) => id.toString() !== userId.toString())
+    friend.friends = friend.friends.filter((id) => id.toString() !== (user._id as string))
 
     await user.save()
     await friend.save()

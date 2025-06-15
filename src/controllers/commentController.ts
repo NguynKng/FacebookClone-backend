@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest, RouteGenericInterface } from 'fastify'
 import CommentModel from '../models/Comment'
 import PostModel from '@/models/Post'
 import { createAndSendNotificationToUser } from './notificationController'
+import { Types } from 'mongoose'
 // ─────────────────────────────────────────────
 // Define interfaces for each route
 interface CommentOnPostRoute extends RouteGenericInterface {
@@ -40,7 +41,7 @@ export const commentOnPost = async (request: FastifyRequest<CommentOnPostRoute>,
       content
     })
 
-    post.comments.push(comment._id)
+    post.comments.push(comment._id as Types.ObjectId)
     await post.save()
 
     const populatedComment = await comment.populate('user', 'firstName surname avatar')

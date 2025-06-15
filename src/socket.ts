@@ -87,7 +87,7 @@ export function handleSocketEvents(fastify: FastifyInstance) {
             _id: sender?._id,
             firstName: sender?.firstName,
             surname: sender?.surname,
-            avatar: sender?.avatar,
+            avatar: sender?.avatar
           })
 
           fastify.io.to(receiverId).emit('newMessage', {

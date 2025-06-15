@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply, RouteGenericInterface } from 'fastify'
-import PostModel from '../models/Post'
+import PostModel, { Post } from '../models/Post'
 import { uploadPostFile } from '@/middleware/upload'
 import { createAndSendNotificationForFriend } from './notificationController'
+import { Types } from 'mongoose'
 
 // @desc    Create a new post with multiple images
 // @route   POST /api/posts
@@ -12,21 +13,20 @@ export const createPost = async (request: FastifyRequest, reply: FastifyReply) =
     const userId = (request as any).user?._id
     let content = ''
     const imagesPaths: string[] = []
-    let totalParts = 0
 
-    const post = await PostModel.create({
+    const post = (await PostModel.create({
       author: userId,
       content,
       images: []
-    })
+    })) as Post
+
+    const postId = (post._id as Types.ObjectId).toString()
 
     for await (const part of data) {
-      totalParts++
-
-      if (part.fieldname === 'content') {
+      if (part.type === 'field' && part.fieldname === 'content') {
         content = part.value as string
       } else if (part.type === 'file' && part.fieldname === 'images') {
-        const imagePath = await uploadPostFile(part, userId, post._id.toString())
+        const imagePath = await uploadPostFile(part, userId, postId)
         imagesPaths.push(imagePath)
       } else if (part.type === 'file') {
         part.file.resume() // Bỏ stream nếu là file không hợp lệ
@@ -42,7 +42,7 @@ export const createPost = async (request: FastifyRequest, reply: FastifyReply) =
     })
 
     if (populatedPost) {
-      await createAndSendNotificationForFriend(userId, 'new_post', populatedPost._id.toString())
+      await createAndSendNotificationForFriend(userId, 'new_post', populatedPost._id as string)
     }
 
     return reply.code(201).send({
